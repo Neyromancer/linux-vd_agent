@@ -1,3 +1,4 @@
+//#include "/var/tmp/sensor.h"
 /*  vdagent.c xorg-client to vdagentd (daemon).
 
     Copyright 2010-2013 Red Hat, Inc.
@@ -7,12 +8,12 @@
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
+    the Free Software Foundation, either version 3 of the License, or   
     (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    but WITHOUT ANY WARRANTY; without even the implied warranty of 
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the  
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
@@ -35,7 +36,6 @@
 #include <sys/stat.h>
 #include <spice/vd_agent.h>
 #include <glib.h>
-#include <poll.h>
 
 #include "udscs.h"
 #include "vdagentd-proto.h"
@@ -45,7 +45,6 @@
 #include "vdagent-file-xfers.h"
 
 static const char *portdev = "/dev/virtio-ports/com.redhat.spice.0";
-static const char *vdagentd_socket = VDAGENTD_SOCKET;
 static int debug = 0;
 static const char *fx_dir = NULL;
 static int fx_open_dir = -1;
@@ -55,9 +54,13 @@ static struct udscs_connection *client = NULL;
 static int quit = 0;
 static int version_mismatch = 0;
 
-static void daemon_read_complete(struct udscs_connection **connp,
+void daemon_read_complete(struct udscs_connection **connp,
     struct udscs_message_header *header, uint8_t *data)
 {
+// ================ added for debuggign | KORMULEV ===================
+	syslog( LOG_INFO, "daemon_read_complete | line 61" );
+//	header->type = VDAGENTD_MONITORS_CONFIG;
+// ========================================================
     switch (header->type) {
     case VDAGENTD_MONITORS_CONFIG:
         vdagent_x11_set_monitor_config(x11, (VDAgentMonitorsConfig *)data, 0);
@@ -110,6 +113,15 @@ static void daemon_read_complete(struct udscs_connection **connp,
         }
         free(data);
         break;
+    case VDAGENTD_FILE_XFER_DISABLE:
+        if (debug)
+            syslog(LOG_DEBUG, "Disabling file-xfers");
+
+        if (vdagent_file_xfers != NULL) {
+            vdagent_file_xfers_destroy(vdagent_file_xfers);
+            vdagent_file_xfers = NULL;
+        }
+        break;
     case VDAGENTD_AUDIO_VOLUME_SYNC: {
         VDAgentAudioVolumeSync *avs = (VDAgentAudioVolumeSync *)data;
         if (avs->is_playback) {
@@ -145,10 +157,13 @@ static void daemon_read_complete(struct udscs_connection **connp,
     }
 }
 
-static int client_setup(int reconnect)
+int client_setup(int reconnect)
 {
+// ================= added for debugging | KORMULEV ===========
+	syslog( LOG_INFO, "client_setup | vdagent.c | line 166" );
+// ============================================================
     while (!quit) {
-        client = udscs_connect(vdagentd_socket, daemon_read_complete, NULL,
+        client = udscs_connect(VDAGENTD_SOCKET, daemon_read_complete, NULL,
                                vdagentd_messages, VDAGENTD_NO_MESSAGES,
                                debug);
         if (client || !reconnect || quit) {
@@ -168,7 +183,6 @@ static void usage(FILE *fp)
       "  -h                                print this text\n"
       "  -d                                log debug messages\n"
       "  -s <port>                         set virtio serial port\n"
-      "  -S <filename>                     set udcs socket\n"
       "  -x                                don't daemonize\n"
       "  -f <dir|xdg-desktop|xdg-download> file xfer save dir\n"
       "  -o <0|1>                          open dir on file xfer completion\n",
@@ -180,52 +194,25 @@ static void quit_handler(int sig)
     quit = 1;
 }
 
-/* When we daemonize, it is useful to have the main process
-   wait to make sure the X connection worked.  We wait up
-   to 10 seconds to get an 'all clear' from the child
-   before we exit.  If we don't, we're able to exit with a
-   status that indicates an error occured */
-static void wait_and_exit(int s)
+void daemonize(void)
 {
-    char buf[4];
-    struct pollfd p;
-    p.fd = s;
-    p.events = POLLIN;
+	syslog( LOG_INFO, "daemonize" );
+    int x, retval = 0;
 
-    if (poll(&p, 1, 10000) > 0)
-        if (read(s, buf, sizeof(buf)) > 0)
-            exit(0);
-
-    exit(1);
-}
-
-static int daemonize(void)
-{
-    int x;
-    int fd[2];
-
-    if (socketpair(PF_LOCAL, SOCK_STREAM, 0, fd)) {
-        syslog(LOG_ERR, "socketpair : %s", strerror(errno));
-        exit(1);
-    }
-
-    /* detach from terminal */
+    // detach from terminal
     switch (fork()) {
     case 0:
         close(0); close(1); close(2);
         setsid();
         x = open("/dev/null", O_RDWR); x = dup(x); x = dup(x);
-        close(fd[0]);
-        return fd[1];
+        break;
     case -1:
         syslog(LOG_ERR, "fork: %s", strerror(errno));
-        exit(1);
+        retval = 1;
     default:
-        close(fd[1]);
-        wait_and_exit(fd[0]);
+        exit(retval);
     }
 
-    return 0;
 }
 
 static int file_test(const char *path)
@@ -237,15 +224,18 @@ static int file_test(const char *path)
 
 int main(int argc, char *argv[])
 {
+
+// ================= added for debugging ======
+	syslog( LOG_INFO, "vdagent started!!" );
+// ============================================
     fd_set readfds, writefds;
     int c, n, nfds, x11_fd;
     int do_daemonize = 1;
-    int parent_socket = 0;
     int x11_sync = 0;
     struct sigaction act;
 
     for (;;) {
-        if (-1 == (c = getopt(argc, argv, "-dxhys:f:o:S:")))
+        if (-1 == (c = getopt(argc, argv, "-dxhys:f:o:")))
             break;
         switch (c) {
         case 'd':
@@ -269,9 +259,6 @@ int main(int argc, char *argv[])
         case 'o':
             fx_open_dir = atoi(optarg);
             break;
-        case 'S':
-            vdagentd_socket = optarg;
-            break;
         default:
             fputs("\n", stderr);
             usage(stderr);
@@ -294,9 +281,8 @@ int main(int argc, char *argv[])
         syslog(LOG_ERR, "Cannot access vdagent virtio channel %s", portdev);
         return 1;
     }
-
     if (do_daemonize)
-        parent_socket = daemonize();
+        daemonize();
 
 reconnect:
     if (version_mismatch) {
@@ -336,14 +322,10 @@ reconnect:
         vdagent_file_xfers = NULL;
     }
 
-    if (parent_socket) {
-        if (write(parent_socket, "OK", 2) != 2)
-            syslog(LOG_WARNING, "Parent already gone.");
-        close(parent_socket);
-        parent_socket = 0;
-    }
-
     while (client && !quit) {
+// ====================== added for debugging | KORMULEV ================
+	vdagent_process_screen_size_change( x11 );
+// ======================================================================
         FD_ZERO(&readfds);
         FD_ZERO(&writefds);
 
