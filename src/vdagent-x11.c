@@ -1,3 +1,4 @@
+//#include "/var/tmp/sensor.h"
 /*  vdagent-x11.c vdagent x11 code
 
     Copyright 2010-2011 Red Hat, Inc.
@@ -23,11 +24,11 @@
    X11 socket. If events have arrived and have already been read by libX11 from
    the socket triggered by other libX11 calls from this file, the select for
    read in the main loop, won't see these and our event loop won't get called!
-
+   
    Thus we must make sure that all queued events have been consumed, whenever
    we return to the main loop. IOW all (externally callable) functions in this
    file must end with calling XPending and consuming all queued events.
-
+   
    Calling XPending when-ever we return to the mainloop also ensures any
    pending writes are flushed. */
 
@@ -85,6 +86,10 @@ static int vdagent_x11_debug_error_handler(
 static int vdagent_x11_ignore_bad_window_handler(
     Display *display, XErrorEvent *error)
 {
+
+// ============= added for debugging | KORMULEV =================
+	syslog( LOG_INFO, "vdagent_x11_ignore_bad_window_handler | vdagent-x11.c | line 91" );
+// ==============================================================
     if (error->error_code == BadWindow)
         return 0;
 
@@ -124,6 +129,11 @@ static void vdagent_x11_get_wm_name(struct vdagent_x11 *x11)
        _NET_SUPPORTING_WM_CHECK property, and the window manager running in
        the user session has not yet updated it to point to its window, so its
        pointing to a non existing window. */
+// ============= added for debugging | KORMULEV =================
+	syslog( LOG_INFO, "vdagent_x11_get_wm_name | vdagent-x11.c | line 134" );
+	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
+	syslog( LOG_INFO, "Before vdagent_x11_set_error_handler" );
+// ==============================================================
     vdagent_x11_set_error_handler(x11, vdagent_x11_ignore_bad_window_handler);
 
     /* Get the window manager SUPPORTING_WM_CHECK window */
@@ -212,6 +222,60 @@ struct vdagent_x11 *vdagent_x11_create(struct udscs_connection *vdagentd,
 
     for (i = 0; i < x11->screen_count; i++)
         x11->root_window[i] = RootWindow(x11->display, i);
+// ============= added for debugging | KORMULEV ==================
+/*
+//	XSelectInput( x11->display, x11->root_window[ i ], StructureNotifyMask );
+	int event_base = 0;
+	int error_base = 0;
+	XRRQueryExtension( x11->display, &event_base, &error_base );
+	XRRScreenConfiguration *sc = XRRGetScreenInfo( x11->display, x11->root_window[ i ] );
+	if ( NULL == sc ) {
+	}
+
+	int n_size = 0;
+	XRRScreenSize *sizes = XRRConfigSizes( sc, &n_size );
+	int size_index = 0;
+	Rotation rotation = 1;
+	int reflection = 0;
+	while ( size_index < n_size ) {
+		if ( sizes[ size_index ].width == 600 && 
+		     sizes[ size_index ].height == 800 ) {
+			++size_index;
+		}
+
+		if ( size_index >= n_size ) {
+		}
+		Status status = XRRSetScreenConfig( x11->display, sc, DefaultRootWindow( x11->display ), 
+						    ( SizeID )size_index, ( Rotation )( rotation | reflection ),
+						    CurrentTime );
+		XEvent event;
+		int rcvdr_rnotify = 1;
+		int rcvd_config_notify = 1;
+		if ( status == RRSetConfigSuccess ) {
+			while( 1 ) {
+				XNextEvent( x11->display, ( XEvent * )&event );
+				XRRUpdateConfiguration( &event );
+				switch( event.type - event_base ) {
+					case RRScreenChangeNotify:
+					rcvdr_rnotify = 0;
+					break;
+					default:
+					if ( event.type == ConfigureNotify ) {
+
+						rcvd_config_notify = 0;
+					} else {
+					}
+					break;
+				}
+				if ( rcvdr_rnotify && rcvdr_rnotify ) 
+					break;
+			}
+		}
+//		++size_index;
+	}
+	exit( 1 );	*/
+// ===============================================================
+
     x11->fd = ConnectionNumber(x11->display);
     x11->clipboard_atom = XInternAtom(x11->display, "CLIPBOARD", False);
     x11->clipboard_primary_atom = XInternAtom(x11->display, "PRIMARY", False);
@@ -237,7 +301,10 @@ struct vdagent_x11 *vdagent_x11_create(struct udscs_connection *vdagentd,
         syslog(LOG_DEBUG, "Selection window: %u", (int)x11->selection_window);
 
     vdagent_x11_randr_init(x11);
-
+// =============================== added for debugging | KORMULEV ==================
+	syslog( LOG_INFO, "vdagent_x11_create | vdagent-x11.c | line 306" );
+	syslog( LOG_INFO, "x11->xfixes_event_base is %d\n", x11->xfixes_event_base );
+// =================================================================================
     if (XFixesQueryExtension(x11->display, &x11->xfixes_event_base, &i) &&
         XFixesQueryVersion(x11->display, &major, &minor) && major >= 1) {
         x11->has_xfixes = 1;
@@ -253,8 +320,16 @@ struct vdagent_x11 *vdagent_x11_create(struct udscs_connection *vdagentd,
                                    XFixesSelectionClientCloseNotifyMask);
     } else
         syslog(LOG_ERR, "no xfixes, no guest -> client copy paste support");
-
+// =============================== added for debugging | KORMULEV ==================
+	syslog( LOG_INFO, "vdagent_x11_create | vdagent-x11.c | line 324" );
+	syslog( LOG_INFO, "Before XExtendedMaxRequestSize" );
+// =================================================================================
     x11->max_prop_size = XExtendedMaxRequestSize(x11->display);
+// =============================== added for debugging | KORMULEV ==================
+	syslog( LOG_INFO, "vdagent_x11_create | vdagent-x11.c | line 329" );
+	syslog( LOG_INFO, "After XExtendedMaxRequestSize" );
+	syslog( LOG_INFO, "x11->max_prop_size is %d\n", x11->max_prop_size );
+// =================================================================================
     if (x11->max_prop_size) {
         x11->max_prop_size -= 100;
     } else {
@@ -263,13 +338,25 @@ struct vdagent_x11 *vdagent_x11_create(struct udscs_connection *vdagentd,
     /* Be a good X11 citizen and maximize the amount of data we send at once */
     if (x11->max_prop_size > 262144)
         x11->max_prop_size = 262144;
-
+// =============================== added for debugging | KORMULEV ==================
+	syslog( LOG_INFO, "vdagent_x11_create | vdagent-x11.c | line 342" );
+	syslog( LOG_INFO, "<<<<< ================ Before for-loop where resolution changes cant be caught ======================== >>>>" );
+// =================================================================================
     for (i = 0; i < x11->screen_count; i++) {
         /* Catch resolution changes */
         XSelectInput(x11->display, x11->root_window[i], StructureNotifyMask);
-
+// ============= added for debugging | KORMULEV ==================
+	syslog( LOG_INFO, "Catch resolution changes | vdagent-x11.c | line 336 | vdagent_x11_create" );
+// ===============================================================
         /* Get the current resolution */
         XGetWindowAttributes(x11->display, x11->root_window[i], &attrib);
+// =================== added for debugging | KORMULEV =====================
+	syslog( LOG_INFO, "vdagent_x11_create | vdagent-x11.c | line 354" );
+	syslog( LOG_INFO, "attrib.width is %d\n", attrib.width );
+        syslog( LOG_INFO, "attrib.height is %d\n", attrib.height );
+	syslog( LOG_INFO, "x11->width[ %d ] is %d\n", i, x11->width[ i ] );
+        syslog( LOG_INFO, "x11->height[ %d ] is %d\n", i, x11->height[ i ] );
+// ========================================================================
         x11->width[i]  = attrib.width;
         x11->height[i] = attrib.height;
     }
@@ -289,6 +376,10 @@ struct vdagent_x11 *vdagent_x11_create(struct udscs_connection *vdagentd,
 
     /* Flush output buffers and consume any pending events */
     vdagent_x11_do_read(x11);
+// ====================== added for debugging | KORMULEV =================
+	syslog( LOG_INFO, "vdagent_x11_create | vdagent-x11.c | line 438" );
+	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
+// =======================================================================
 
     return x11;
 }
@@ -299,7 +390,10 @@ void vdagent_x11_destroy(struct vdagent_x11 *x11, int vdagentd_disconnected)
 
     if (!x11)
         return;
-
+// ====================== added for debugging | KORMULEV =================
+	syslog( LOG_INFO, "vdagent_x11_destroy | vdagent-x11.c | line 452" );
+	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
+// =======================================================================
     if (vdagentd_disconnected)
         x11->vdagentd = NULL;
 
@@ -323,6 +417,11 @@ static void vdagent_x11_next_selection_request(struct vdagent_x11 *x11)
     struct vdagent_x11_selection_request *selection_request;
     selection_request = x11->selection_req;
     x11->selection_req = selection_request->next;
+// ====================== added for debugging | KORMULEV =================
+	syslog( LOG_INFO, "vdagent_x11_next_selection_request | vdagent-x11.c | line 454" );
+	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
+// =======================================================================
+
     free(selection_request);
 }
 
@@ -429,7 +528,11 @@ static int vdagent_x11_get_clipboard_selection(struct vdagent_x11 *x11,
     XEvent *event, uint8_t *selection)
 {
     Atom atom;
-
+// ================= added for debugging | KORMULEV ================
+	syslog( LOG_INFO, "vdagent_x11_get_clipboard_selection | vdagent-x11.c | line 554" );
+	syslog( LOG_INFO, "event->type is %d\n", event->type );
+	syslog( LOG_INFO, "x11->xfixes_event_base is %d\n", x11->xfixes_event_base );
+// =================================================================
     if (event->type == x11->xfixes_event_base) {
         XFixesSelectionNotifyEvent *xfev = (XFixesSelectionNotifyEvent *)event;
         atom = xfev->selection;
@@ -454,11 +557,212 @@ static int vdagent_x11_get_clipboard_selection(struct vdagent_x11 *x11,
     return 0;
 }
 
+// ==================== added for debugging | KORMULEV =======================================================
+static void free_randr_resources( struct vdagent_x11 *x11 ) {
+	int i;
+	if ( !x11->randr.res )
+		return;
+
+	if ( NULL != x11->randr.outputs ) {
+		for ( i = 0; i < x11->randr.res->noutput; ++i ) {
+			XRRFreeOutputInfo( x11->randr.outputs[ i ] );
+		}
+		free( x11->randr.outputs );
+	}
+	if ( NULL != x11->randr.crtcs ) {
+		for ( i = 0; i < x11->randr.res->ncrtc; ++i ) {
+			XRRFreeCrtcInfo( x11->randr.crtcs[ i ] );
+		}
+		free( x11->randr.crtcs );
+	}
+	XRRFreeScreenResources( x11->randr.res );
+	x11->randr.res = NULL;
+	x11->randr.outputs = NULL;
+	x11->randr.crtcs = NULL;
+	x11->randr.num_monitors = 0;
+}
+
+static void update_randr_res( struct vdagent_x11 *x11, int poll ) {
+	int i;
+	free_randr_resources( x11 );
+	if ( poll )
+		x11->randr.res = XRRGetScreenResources( x11->display, x11->root_window[ 0 ] );
+	else
+		x11->randr.res = XRRGetScreenResourcesCurrent( x11->display, x11->root_window[ 0 ] );
+	x11->randr.outputs = malloc( x11->randr.res->noutput * sizeof( *x11->randr.outputs ) );
+	if ( NULL == x11->randr.outputs ) {
+		syslog( LOG_ERR, "Couldn't allocate enough memory for randr.outputs" );
+	}
+	x11->randr.crtcs = malloc( x11->randr.res->ncrtc * sizeof( *x11->randr.crtcs ) );
+	if ( NULL == x11->randr.outputs ) {
+		syslog( LOG_ERR, "Couldn't allocate enough memory for randr.crtcs" );
+	}
+
+	for ( i = 0; i < x11->randr.res->noutput; ++i ) {
+		x11->randr.outputs[ i ] = XRRGetOutputInfo( x11->display, x11->randr.res,
+							    x11->randr.res->outputs[ i ] );
+
+		if ( RR_Connected == x11->randr.outputs[ i ]->connection )
+			x11->randr.num_monitors++;
+	}
+	for ( i = 0; i < x11->randr.res->ncrtc; ++i ) {
+		x11->randr.crtcs[ i ] = XRRGetCrtcInfo( x11->display, x11->randr.res,
+							x11->randr.res->crtcs[ i ] );
+	}
+	if ( 1 != XRRGetScreenSizeRange( x11->display, x11->root_window[ 0 ],
+				    &x11->randr.min_width,
+				    &x11->randr.min_height,
+				    &x11->randr.max_width,
+				    &x11->randr.max_height ) ) {
+		syslog( LOG_ERR, "update_randr_res" );
+	}
+
+}
+
+static int set_screen_to_defined_size( struct vdagent_x11 *x11, int width, int height, 
+				   int *out_width, int *out_height ) {
+
+	int i, num_sizes = 0;
+	int best = -1;
+	unsigned int closest_diff = -1;
+	XRRScreenSize *sizes;
+	XRRScreenConfiguration *config;
+	Rotation rotation;
+
+	sizes = XRRSizes( x11->display, 0, &num_sizes );
+	if ( NULL == sizes || !num_sizes ) {
+		syslog( LOG_ERR, "XRRSizes failed" );
+
+		return 0;
+	}
+	if ( x11->debug )
+		syslog( LOG_DEBUG, "set_screen_to_defined_size found %d modes\n", num_sizes );
+
+	for ( i = 0; i < num_sizes; ++i ) {
+		if ( sizes[ i ].width > width ||
+		     sizes[ i ].height > height )
+			continue;
+
+		unsigned int wdiff = width - sizes[ i ].width;
+		unsigned int hdiff = height - sizes[ i ].height;
+		unsigned int diff = wdiff * wdiff + hdiff * hdiff;
+		if ( diff < closest_diff ) {
+			closest_diff = diff;
+			best = i;
+		}
+	}
+
+	if ( -1 == best ) {
+		syslog( LOG_ERR, "no suitable resolution found for monitor" );
+
+		return 0;
+	}
+
+	config = XRRGetScreenInfo( x11->display, x11->root_window[ 0 ] );
+	if ( NULL == config ) {
+		syslog( LOG_ERR, "get screen info failed" );
+
+		return 0;
+	}
+	XRRConfigCurrentConfiguration( config, &rotation );
+	XRRSetScreenConfig( x11->display, config, x11->root_window[ 0 ], best,
+			    rotation, CurrentTime );
+	XRRFreeScreenConfigInfo( config );
+	if ( x11->debug )
+		syslog( LOG_DEBUG, "set_screen_to_defined_size set size to: %dx%d\n",
+			sizes[ best ].width, sizes[ best ].height );
+
+	*out_width = sizes[ best ].width;
+	*out_height = sizes[ best ].height;
+
+	return 1;
+}
+
+void vdagent_process_screen_size_change( struct vdagent_x11 *x11 )
+{
+// ============= added for debugging | KORMULEV ==================
+     syslog( LOG_INFO, "<<<<<<<<<<<<<<< !!!!!!!!!!!!!!!!! vdagent_process_screen_size_change !!!!!!!!!!!!!!!!!!!!! >>>>>>>>>>>>>>>>>" );
+     syslog( LOG_INFO, "Catch resolution changes | vdagent_process_screen_size_change | vdagent-x11.c | line 567 " );
+    // ===============================================================
+   XWindowAttributes attrib;
+   XRRScreenSize *sizes = NULL;
+   XRRScreenConfiguration **sc;
+   int i = 0;
+   int out_width = 0;
+   int out_height = 0;
+   for ( i = 0; i < x11->screen_count; ++i ) {
+      /* Catch resolution changes */
+      XSelectInput( x11->display, x11->root_window[ i ], StructureNotifyMask );
+      XRRScreenConfiguration *tmp = XRRGetScreenInfo( x11->display, x11->root_window[ i ] );
+      if ( NULL == tmp ) {
+	       syslog( LOG_ERR, "Could not get screen info" );
+      }
+      sc = ( XRRScreenConfiguration ** )malloc( x11->screen_count * sizeof( tmp ) ); 
+      if ( NULL == sc ) {
+		syslog( LOG_ERR, "Could not allocate memory. Not enough available" );
+      }
+      sc[ i ] = tmp;
+      if ( NULL == sc ) {
+		syslog( LOG_ERR, "Something went wrong. Could not assign screen info correctly" );
+      }
+      
+      /* Get the current resolution */
+      XGetWindowAttributes( x11->display, x11->root_window[ i ], &attrib );
+      int n_size = 0;
+      sizes = XRRConfigSizes( ( sc[ i ] ), &n_size );
+      // =================== added for debugging | KORMULEV =====================
+      syslog( LOG_INFO, "vdagent_process_screen_size_change | vdagent-x11.c | line 573" );
+      syslog( LOG_INFO, "attrib.width is %d\n", attrib.width );
+      syslog( LOG_INFO, "attrib.height is %d\n", attrib.height );
+      syslog( LOG_INFO, "sizes[ i ].width is %d\n", sizes[ i ].width );
+      syslog( LOG_INFO, "sizes[ i ].height is %d\n", sizes[ i ].height );
+      syslog( LOG_INFO, "x11->width[ %d ] is %d\n", i, x11->width[ i ] );
+      syslog( LOG_INFO, "x11->height[ %d ] is %d\n", i, x11->height[ i ] );
+      if ( x11->width[ i ] != attrib.width ||
+  	   x11->height[ i ] != attrib.height )
+      syslog( LOG_INFO, "sizes in x11 structure are not equal to the physical screen sizes" );
+      // ========================================================================
+      if ( x11->width[ i ] != sizes[ i ].width )
+	      x11->width[i]  = sizes[ i ].width;
+      if ( x11->height[ i ] != sizes[ i ].height )
+	      x11->height[i] = sizes[ i ].height; 
+    
+/*      XRRSetScreenSize( x11->display, x11->root_window[ 0 ], x11->width[ i ], x11->height[ i ],
+			DisplayWidthMM( x11->display, 0 ),
+			DisplayHeightMM( x11->display, 0 ) ); */
+        set_screen_to_defined_size( x11, x11->width[ i ], x11->height[ i ], &out_width, &out_height );
+//	x11->width[ i ] = out_width;
+//	x11->height[ i ] = out_height;
+// =================== added for debugging | KORMULEV =====================
+      syslog( LOG_INFO, "vdagent_process_screen_size_change | vdagent-x11.c | line 737" );
+      syslog( LOG_INFO, "attrib.width is %d\n", attrib.width );
+      syslog( LOG_INFO, "attrib.height is %d\n", attrib.height );
+      syslog( LOG_INFO, "sizes[ i ].width is %d\n", sizes[ i ].width );
+      syslog( LOG_INFO, "sizes[ i ].height is %d\n", sizes[ i ].height );
+      syslog( LOG_INFO, "x11->width[ %d ] is %d\n", i, x11->width[ i ] );
+      syslog( LOG_INFO, "x11->height[ %d ] is %d\n", i, x11->height[ i ] );
+// ========================================================================
+    }
+
+    update_randr_res( x11, 0 );
+    x11->dont_send_guest_xorg_res = 1;
+    vdagent_x11_do_read( x11 );
+    x11->dont_send_guest_xorg_res = 0;
+    vdagent_x11_send_daemon_guest_xorg_res(x11, 0 );
+    vdagent_x11_do_read( x11 );
+}
+// ============================================================================================================
+
+
 static void vdagent_x11_handle_event(struct vdagent_x11 *x11, XEvent event)
 {
     int i, handled = 0;
     uint8_t selection;
-
+// ================= added for debugging | KORMULEV ================
+	syslog( LOG_INFO, "vdagent_x11_handle_event | vdagent-x11.c | line 586" );
+	syslog( LOG_INFO, "event.type is %d", event.type );
+	syslog( LOG_INFO, "x11->xfixes_event_base is %d\n", x11->xfixes_event_base );
+// =================================================================
     if (event.type == x11->xfixes_event_base) {
         union {
             XEvent ev;
@@ -491,7 +795,10 @@ static void vdagent_x11_handle_event(struct vdagent_x11 *x11, XEvent event)
 
         /* If the clipboard owner is changed we no longer own it */
         vdagent_x11_set_clipboard_owner(x11, selection, owner_none);
-
+// =================== added for debugging | kormulev =====================
+	syslog( LOG_INFO, "vdagent_x11_handle_event | vdagent-x11.c | line 659" );
+	syslog( LOG_INFO, "x11->xfixes_event_base is %d\n", x11->xfixes_event_base );
+// ========================================================================
         if (ev.xfev.owner == None)
             return;
 
@@ -499,15 +806,26 @@ static void vdagent_x11_handle_event(struct vdagent_x11 *x11, XEvent event)
         XConvertSelection(x11->display, ev.xfev.selection, x11->targets_atom,
                           x11->targets_atom, x11->selection_window,
                           CurrentTime);
+
         x11->expected_targets_notifies[selection]++;
         return;
     }
-
-    if (vdagent_x11_randr_handle_event(x11, event))
-        return;
-
+// =================== added for debugging | kormulev =====================
+	syslog( LOG_INFO, "<<<<<< ========================================================== >>>>>" );
+	syslog( LOG_INFO, "vdagent_x11_handle_event | vdagent-x11.c | line 627" );
+	syslog( LOG_INFO, "event \"configurenotify\" is %d\n", ConfigureNotify );
+	syslog( LOG_INFO, "event event.type is %d\n", event.type );
+	syslog( LOG_INFO, "event.xconfigure.width is %d\n", event.xconfigure.width );
+	syslog( LOG_INFO, "event.xconfigure.height is %d\n", event.xconfigure.height );
+	syslog( LOG_INFO, "x11->width[ 0 ] is %d\n", x11->width[ 0 ] );
+	syslog( LOG_INFO, "x11->height[ 0 ] is %d\n", x11->height[ 0 ] );
+//	syslog( LOG_INFO, "x11->width[ 1 ] is %d\n", x11->width[ 1 ] );
+//	syslog( LOG_INFO, "x11->height[ 1 ] is %d\n", x11->height[ 1 ] );
+	syslog( LOG_INFO, "<<<<<< ========================================================== >>>>>" );
+// ========================================================================
     switch (event.type) {
     case ConfigureNotify:
+        // TODO: handle CrtcConfigureNotify, OutputConfigureNotify can be ignored.
         for (i = 0; i < x11->screen_count; i++)
             if (event.xconfigure.window == x11->root_window[i])
                 break;
@@ -517,6 +835,11 @@ static void vdagent_x11_handle_event(struct vdagent_x11 *x11, XEvent event)
         handled = 1;
         vdagent_x11_randr_handle_root_size_change(x11, i,
                 event.xconfigure.width, event.xconfigure.height);
+// =================== added for debugging | KORMULEV =====================
+	syslog( LOG_INFO, "vdagent_x11_handle_event | vdagent-x11.c | line 644" );
+	syslog( LOG_INFO, "event width is %d\n", event.xconfigure.width );
+        syslog( LOG_INFO, "event height is %d\n", event.xconfigure.height);
+// ========================================================================
         break;
     case MappingNotify:
         /* These are uninteresting */
@@ -535,7 +858,7 @@ static void vdagent_x11_handle_event(struct vdagent_x11 *x11, XEvent event)
                                 event.xproperty.state == PropertyNewValue) {
             vdagent_x11_handle_selection_notify(x11, &event, 1);
         }
-        if (x11->selection_req_data &&
+        if (x11->selection_req_data && 
                                  event.xproperty.state == PropertyDelete) {
             vdagent_x11_handle_property_delete_notify(x11, &event);
         }
@@ -593,6 +916,10 @@ void vdagent_x11_do_read(struct vdagent_x11 *x11)
 
     while (XPending(x11->display)) {
         XNextEvent(x11->display, &event);
+// ============= added for debugging | KORMULEV =================
+	//XRRUpdateConfiguration( &event );
+	syslog( LOG_INFO, "vdagent_x11_do_read | vdagent-x11.c | event->type %d\n", event.type );
+// ==============================================================
         vdagent_x11_handle_event(x11, event);
     }
 }
@@ -614,6 +941,10 @@ static int vdagent_x11_get_selection(struct vdagent_x11 *x11, XEvent *event,
     int format_ret, ret_val = -1;
     unsigned long len, remain;
     unsigned char *data = NULL;
+// =================== added for debugging | KORMULEV =====================
+	syslog( LOG_INFO, "vdagent_x11_get_selection | vdagent-x11.c | line 776" );
+	syslog( LOG_INFO, "event->type is %d\n", event->type );
+// ========================================================================
 
     *data_ret = NULL;
 
@@ -658,8 +989,19 @@ static int vdagent_x11_get_selection(struct vdagent_x11 *x11, XEvent *event,
                 x11->clipboard_data_space = prop_min_size;
             }
             x11->expect_property_notify = 1;
+// =================== added for debugging | KORMULEV =====================
+	syslog( LOG_INFO, "vdagent_x11_get_selection | vdagent-x11.c | line 823" );
+	syslog( LOG_INFO, "event->type is %d\n", event->type );
+	syslog( LOG_INFO, "Before XSelectInput" );
+// ========================================================================
             XSelectInput(x11->display, x11->selection_window,
                          PropertyChangeMask);
+// =================== added for debugging | KORMULEV =====================
+	syslog( LOG_INFO, "vdagent_x11_get_selection | vdagent-x11.c | line 831" );
+	syslog( LOG_INFO, "event->type is %d\n", event->type );
+	syslog( LOG_INFO, "After XSelectInput" );
+// ========================================================================
+
             XDeleteProperty(x11->display, x11->selection_window, prop);
             XFree(data);
             return 0; /* Wait for more data */
@@ -754,6 +1096,10 @@ static uint32_t vdagent_x11_target_to_type(struct vdagent_x11 *x11,
     uint8_t selection, Atom target)
 {
     int i, j;
+// =================== added for debugging | KORMULEV =====================
+	syslog( LOG_INFO, "vdagent_x11_target_to_type | vdagent-x11.c | line 954" );
+	syslog( LOG_INFO, "x11->xfixes_event_base is %d\n", x11->xfixes_event_base );
+// ========================================================================
 
     for (i = 0; i < clipboard_format_count; i++) {
         for (j = 0; j < x11->clipboard_formats[i].atom_count; j++) {
@@ -763,8 +1109,8 @@ static uint32_t vdagent_x11_target_to_type(struct vdagent_x11 *x11,
         }
     }
 
-    VSELPRINTF("unexpected selection type %s",
-               vdagent_x11_get_atom_name(x11, target));
+    SELPRINTF("unexpected selection type %s",
+              vdagent_x11_get_atom_name(x11, target));
     return VD_AGENT_CLIPBOARD_NONE;
 }
 
@@ -835,9 +1181,6 @@ static void vdagent_x11_handle_selection_notify(struct vdagent_x11 *x11,
     selection = x11->conversion_req->selection;
     type = vdagent_x11_target_to_type(x11, selection,
                                       x11->conversion_req->target);
-    if (type == VD_AGENT_CLIPBOARD_NONE)
-        SELPRINTF("internal error conversion_req has bad target %s",
-                  vdagent_x11_get_atom_name(x11, x11->conversion_req->target));
     if (len == 0) { /* No errors so far */
         len = vdagent_x11_get_selection(x11, event, selection,
                                         x11->conversion_req->target,
@@ -875,6 +1218,10 @@ static void vdagent_x11_print_targets(struct vdagent_x11 *x11,
     uint8_t selection, const char *action, Atom *atoms, int c)
 {
     int i;
+// =================== added for debugging | KORMULEV =====================
+	syslog( LOG_INFO, "vdagent_x11_print_targets | vdagent-x11.c | line 1076" );
+	syslog( LOG_INFO, "x11->xfixes_event_base is %d\n", x11->xfixes_event_base );
+// ========================================================================
     VSELPRINTF("%s %d targets:", action, c);
     for (i = 0; i < c; i++)
         VSELPRINTF("%s", vdagent_x11_get_atom_name(x11, atoms[i]));
@@ -887,7 +1234,11 @@ static void vdagent_x11_handle_targets_notify(struct vdagent_x11 *x11,
     Atom atom, *atoms = NULL;
     uint8_t selection;
     int *type_count;
-
+// =================== added for debugging | KORMULEV =====================
+	syslog( LOG_INFO, "vdagent_x11_handle_targets_notify | vdagent-x11.c | line 1092" );
+	syslog( LOG_INFO, "x11->xfixes_event_base is %d\n", x11->xfixes_event_base );
+	syslog( LOG_INFO, "event->type is %d\n", event->type );
+// ========================================================================   
     if (vdagent_x11_get_clipboard_selection(x11, event, &selection)) {
         return;
     }
@@ -954,7 +1305,11 @@ static void vdagent_x11_send_selection_notify(struct vdagent_x11 *x11,
     } else {
         event = &x11->selection_req->event;
     }
-
+// =================== added for debugging | KORMULEV =====================
+	syslog( LOG_INFO, "vdagent_x11_send_selection_notify | vdagent-x11.c | line 1163" );
+	syslog( LOG_INFO, "x11->xfixes_event_base is %d\n", x11->xfixes_event_base );
+	syslog( LOG_INFO, "event->type is %d\n", event->type );
+// ======================================================================== 
     res.xselection.property = prop;
     res.xselection.type = SelectionNotify;
     res.xselection.display = event->xselectionrequest.display;
@@ -978,7 +1333,11 @@ static void vdagent_x11_send_targets(struct vdagent_x11 *x11,
 {
     Atom prop, targets[256] = { x11->targets_atom, };
     int i, j, k, target_count = 1;
-
+// =================== added for debugging | KORMULEV =====================
+	syslog( LOG_INFO, "vdagent_x11_send_targets | vdagent-x11.c | line 1191" );
+	syslog( LOG_INFO, "x11->xfixes_event_base is %d\n", x11->xfixes_event_base );
+	syslog( LOG_INFO, "event->type is %d\n", event->type );
+// ========================================================================
     for (i = 0; i < x11->clipboard_type_count[selection]; i++) {
         for (j = 0; j < clipboard_format_count; j++) {
             if (x11->clipboard_formats[j].type !=
@@ -1010,7 +1369,7 @@ exit_loop:
                                   targets, target_count);
         vdagent_x11_send_selection_notify(x11, prop, NULL);
     } else
-        SELPRINTF("send_targets: Failed to sent, requestor window gone");
+       SELPRINTF("send_targets: Failed to sent, requestor window gone");
 }
 
 static void vdagent_x11_handle_selection_request(struct vdagent_x11 *x11)
@@ -1018,12 +1377,16 @@ static void vdagent_x11_handle_selection_request(struct vdagent_x11 *x11)
     XEvent *event;
     uint32_t type = VD_AGENT_CLIPBOARD_NONE;
     uint8_t selection;
-
     if (!x11->selection_req)
         return;
 
     event = &x11->selection_req->event;
     selection = x11->selection_req->selection;
+// =================== added for debugging | KORMULEV =====================
+	syslog( LOG_INFO, "vdagent_x11_send_targets | vdagent-x11.c | line 1240" );
+	syslog( LOG_INFO, "x11->xfixes_event_base is %d\n", x11->xfixes_event_base );
+	syslog( LOG_INFO, "event->type is %d\n", event->type );
+// ========================================================================
 
     if (x11->clipboard_owner[selection] != owner_client) {
         SELPRINTF("received selection request event for target %s, "
@@ -1061,7 +1424,6 @@ static void vdagent_x11_handle_selection_request(struct vdagent_x11 *x11)
     type = vdagent_x11_target_to_type(x11, selection,
                                       event->xselectionrequest.target);
     if (type == VD_AGENT_CLIPBOARD_NONE) {
-        VSELPRINTF("guest app requested a non-advertised target");
         vdagent_x11_send_selection_notify(x11, None, NULL);
         return;
     }
@@ -1156,6 +1518,10 @@ void vdagent_x11_clipboard_request(struct vdagent_x11 *x11,
     new_req->target = target;
     new_req->selection = selection;
     new_req->next = NULL;
+// =================== added for debugging | KORMULEV =====================
+	syslog( LOG_INFO, "vdagent_x11_clipboard_request | vdagent-x11.c | line 1376" );
+	syslog( LOG_INFO, "x11->xfixes_event_base is %d\n", x11->xfixes_event_base );
+// ========================================================================
 
     if (!x11->conversion_req) {
         x11->conversion_req = new_req;
@@ -1164,6 +1530,10 @@ void vdagent_x11_clipboard_request(struct vdagent_x11 *x11,
         vdagent_x11_do_read(x11);
         return;
     }
+// =================== added for debugging | KORMULEV =====================
+	syslog( LOG_INFO, "vdagent_x11_clipboard_request | vdagent-x11.c | line 1388" );
+	syslog( LOG_INFO, "x11->xfixes_event_base is %d\n", x11->xfixes_event_base );
+// ========================================================================
 
     /* maybe we should limit the conversion_request stack depth ? */
     req = x11->conversion_req;
@@ -1210,7 +1580,10 @@ void vdagent_x11_clipboard_data(struct vdagent_x11 *x11, uint8_t selection,
     Atom prop;
     XEvent *event;
     uint32_t type_from_event;
-
+// =================== added for debugging | KORMULEV =====================
+	syslog( LOG_INFO, "vdagent_x11_clipboard_data | vdagent-x11.c | line 1438" );
+	syslog( LOG_INFO, "x11->xfixes_event_base is %d\n", x11->xfixes_event_base );
+// ========================================================================
     if (x11->selection_req_data) {
         if (type || size) {
             SELPRINTF("received clipboard data while still sending"
@@ -1230,7 +1603,7 @@ void vdagent_x11_clipboard_data(struct vdagent_x11 *x11, uint8_t selection,
     }
 
     event = &x11->selection_req->event;
-    type_from_event = vdagent_x11_target_to_type(x11,
+    type_from_event = vdagent_x11_target_to_type(x11, 
                                              x11->selection_req->selection,
                                              event->xselectionrequest.target);
     if (type_from_event != type ||
@@ -1302,7 +1675,7 @@ void vdagent_x11_clipboard_release(struct vdagent_x11 *x11, uint8_t selection)
     }
 
     if (x11->clipboard_owner[selection] != owner_client) {
-        VSELPRINTF("received release while not owning client clipboard");
+        SELPRINTF("received release while not owning client clipboard");
         return;
     }
 
@@ -1311,6 +1684,11 @@ void vdagent_x11_clipboard_release(struct vdagent_x11 *x11, uint8_t selection)
        by this, so we don't end up changing the clipboard owner to none, after
        it has already been re-owned because this event is still pending. */
     XSync(x11->display, False);
+// =================== added for debugging | KORMULEV =====================
+	syslog( LOG_INFO, "vdagent_x11_clipboard_release | vdagent-x11.c | line 1519" );
+	syslog( LOG_INFO, "x11->xfixes_event_base is %d\n", x11->xfixes_event_base );
+	syslog( LOG_INFO, "event.type is %d\n", event.type );
+// ========================================================================
     while (XCheckTypedEvent(x11->display, x11->xfixes_event_base,
                             &event))
         vdagent_x11_handle_event(x11, event);
