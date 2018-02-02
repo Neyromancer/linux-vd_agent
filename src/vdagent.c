@@ -36,9 +36,7 @@
 #include <sys/stat.h>
 #include <spice/vd_agent.h>
 #include <glib.h>
-// ============= added for debugging | KORMULEV ========
-	#include <pthread.h>
-// =====================================================
+#include <pthread.h>
 
 #include "udscs.h"
 #include "vdagentd-proto.h"
@@ -57,31 +55,21 @@ static struct udscs_connection *client = NULL;
 static int quit = 0;
 static int version_mismatch = 0;
 
-// ====================== added for debugging | KORMULEV ================
-//	vdagent_process_screen_size_change( x11 );
-	static void *change_resolution() {
-		syslog( LOG_INFO, "change_resolution" );	
-		int var = 0;
-		while( 1 ) {
+static void *change_resolution() {
+	syslog( LOG_INFO, "change_resolution" );	
+	int var = 0;
+	while( 1 ) {
 		var = system( "xrandr --output Virtual-0 --auto" );
-		}
-
-		return ( ( -1 == var ) ? NULL : NULL );
 	}
-// ======================================================================
+
+	return ( ( -1 == var ) ? NULL : NULL );
+}
 
 void daemon_read_complete(struct udscs_connection **connp,
     struct udscs_message_header *header, uint8_t *data)
 {
-// ================ added for debuggign | KORMULEV ==========
-	syslog( LOG_INFO, "daemon_read_complete | line 61" );
-// ==========================================================
     switch (header->type) {
     case VDAGENTD_MONITORS_CONFIG:
-// ================ added for debuggign | KORMULEV ===================================
-	syslog( LOG_INFO, "before calling vdagent_x11_set_monitor_config | line 66" );
-// ===================================================================================
-
         vdagent_x11_set_monitor_config(x11, (VDAgentMonitorsConfig *)data, 0);
         free(data);
         break;
@@ -178,9 +166,6 @@ void daemon_read_complete(struct udscs_connection **connp,
 
 int client_setup(int reconnect)
 {
-// ================= added for debugging | KORMULEV ===========
-	syslog( LOG_INFO, "client_setup | vdagent.c | line 166" );
-// ============================================================
     while (!quit) {
         client = udscs_connect(VDAGENTD_SOCKET, daemon_read_complete, NULL,
                                vdagentd_messages, VDAGENTD_NO_MESSAGES,
@@ -243,10 +228,6 @@ static int file_test(const char *path)
 
 int main(int argc, char *argv[])
 {
-
-// ================= added for debugging ======
-	syslog( LOG_INFO, "vdagent started!!" );
-// ============================================
     fd_set readfds, writefds;
     int c, n, nfds, x11_fd;
     int do_daemonize = 1;

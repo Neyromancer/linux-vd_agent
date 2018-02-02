@@ -106,13 +106,6 @@ static void update_randr_res(struct vdagent_x11 *x11, int poll)
     for (i = 0 ; i < x11->randr.res->noutput; ++i) {
         x11->randr.outputs[i] = XRRGetOutputInfo(x11->display, x11->randr.res,
                                                  x11->randr.res->outputs[i]);
-// =================== added for debugging | KORMULEV =======================
-	syslog( LOG_INFO, "update_randr_res() | vdaget-x11-randr.c | line 110" );
-	syslog( LOG_INFO, "width in mm is %lu\n", x11->randr.outputs[ i ]->mm_width );
-	syslog( LOG_INFO, "height in mm is %lu\n", x11->randr.outputs[ i ]->mm_height );
-	syslog( LOG_INFO, "num of displays is %hu\n", x11->randr.outputs[ i ]->connection );
-	syslog( LOG_INFO, "x11->xfixes_event_base is %hu\n", x11->xfixes_event_base );
-// ==========================================================================
 
         if (x11->randr.outputs[i]->connection == RR_Connected)
             x11->randr.num_monitors++;
@@ -129,10 +122,6 @@ static void update_randr_res(struct vdagent_x11 *x11, int poll)
                               &x11->randr.max_height) != 1) {
         syslog(LOG_ERR, "update_randr_res: RRGetScreenSizeRange failed");
     }
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "update_randr_res | vdagent-x11-randr.c |  line 133" );
-        syslog( LOG_ERR, "exit function update_randr_res |  line 134");
-// ======================================================================
 }
 
 void vdagent_x11_randr_init(struct vdagent_x11 *x11)
@@ -185,12 +174,6 @@ find_mode_by_name (struct vdagent_x11 *x11, char *name)
 
     for (m = 0; m < x11->randr.res->nmode; m++) {
         XRRModeInfo *mode = &x11->randr.res->modes[m];
-// ================== added for debugging | KORMULEV ================
-	syslog( LOG_INFO, "find_mode_by_name | vdagent-x11-randr.c | line 198" );
-	syslog( LOG_INFO, "mode->name %s\n", mode->name );
-	syslog( LOG_INFO, "width %d\n", ret->width );
-	syslog( LOG_INFO, "width %d\n", ret->height );
-// ==================================================================
         if (!strcmp (name, mode->name)) {
             ret = mode;
             break;
@@ -202,23 +185,12 @@ find_mode_by_name (struct vdagent_x11 *x11, char *name)
 static XRRModeInfo *
 find_mode_by_size (struct vdagent_x11 *x11, int output, int width, int height)
 {
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "set_reduced_cvt_mode | vdagent-x11-randr.c | line 215" );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "height %d\n", height );
-	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
-// ======================================================================
     int        	m;
     XRRModeInfo        *ret = NULL;
     
     for (m = 0; m < x11->randr.outputs[output]->nmode; m++) {
         XRRModeInfo *mode = mode_from_id(x11,
                                          x11->randr.outputs[output]->modes[m]);
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "set_reduced_cvt_mode | vdagent-x11-randr.c | line 226" );
-	syslog( LOG_INFO, "mode->width %d\n", mode->width );
-	syslog( LOG_INFO, "mode->height %d\n", mode->height );
-// ======================================================================
 
         if (mode && mode->width == width && mode->height == height) {
             ret = mode;
@@ -235,11 +207,6 @@ static void delete_mode(struct vdagent_x11 *x11, int output_index,
     XRRModeInfo *mode;
     XRROutputInfo *output_info;
     char name[20];
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "set_reduced_cvt_mode | vdagent-x11-randr.c | line 247" );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "height %d\n", height );
-// ======================================================================
     if (width == 0 || height == 0)
         return;
 
@@ -273,11 +240,6 @@ static void delete_mode(struct vdagent_x11 *x11, int output_index,
 
 static void set_reduced_cvt_mode(XRRModeInfo *mode, int width, int height)
 {
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "set_reduced_cvt_mode | vdagent-x11-randr.c | line 285" );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "height %d\n", height );
-// ======================================================================
     /* Code taken from hw/xfree86/modes/xf86cvt.c
      * See that file for lineage. Originated in public domain code
      * Would be nice if xorg exported this in a library */
@@ -315,13 +277,6 @@ static void set_reduced_cvt_mode(XRRModeInfo *mode, int width, int height)
     float HPeriod;
 
     /* 2. Horizontal pixels */
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "set_reduced_cvt_mode | vdagent-x11-randr.c | line 327" );
-	syslog( LOG_INFO, "mode->width %d\n", mode->width );
-	syslog( LOG_INFO, "mode->height %d\n", mode->height );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "height %d\n", height );
-// ======================================================================
 
     width = width - (width % CVT_H_GRANULARITY);
 
@@ -334,11 +289,6 @@ static void set_reduced_cvt_mode(XRRModeInfo *mode, int width, int height)
 
     /* 9. Find number of lines in vertical blanking */
     VBILines = ((float) CVT_RB_MIN_VBLANK) / HPeriod + 1;
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "set_reduced_cvt_mode | vdagent-x11-randr.c | line 346" );
-	syslog( LOG_INFO, "number of lines in vertical blanking VBILines %d\n", VBILines );
-// ======================================================================
-
 
     /* 10. Check if vertical blanking is sufficient */
     if (VBILines < (CVT_RB_VFPORCH + VSync + CVT_MIN_V_BPORCH))
@@ -368,21 +318,11 @@ static XRRModeInfo *create_new_mode(struct vdagent_x11 *x11, int output_index,
 {
     char modename[20];
     XRRModeInfo mode;
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "create_new_mode | vdagent-x11-randr.c | line 380" );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "height %d\n", height );
-// ======================================================================
     snprintf(modename, sizeof(modename), "%dx%d-%d", width, height, output_index);
     mode.hSkew = 0;
     mode.name = modename;
     mode.nameLength = strlen(mode.name);
     set_reduced_cvt_mode(&mode, width, height);
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "create_new_mode | vdagent-x11-randr.c | line 390" );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "height %d\n", height );
-// ======================================================================
 
     mode.modeFlags = 0;
     mode.id = 0;
@@ -406,14 +346,6 @@ static int xrandr_add_and_set(struct vdagent_x11 *x11, int output, int x, int y,
     RROutput outputs[1];
     int old_width  = x11->randr.monitor_sizes[output].width;
     int old_height = x11->randr.monitor_sizes[output].height;
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "xrandr_add_and_set | vdagent-x11-randr.c | line 418" );
-	syslog( LOG_INFO, "old_width %d\n", old_width );
-	syslog( LOG_INFO, "old_height %d\n", old_height );
-	syslog( LOG_INFO, "new width %d\n", width );
-	syslog( LOG_INFO, "new height %d\n", height );
-	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
-// ======================================================================
     if (!x11->randr.res || output >= x11->randr.res->noutput || output < 0) {
         syslog(LOG_ERR, "%s: program error: missing RANDR or bad output",
                __FUNCTION__);
@@ -436,11 +368,6 @@ static int xrandr_add_and_set(struct vdagent_x11 *x11, int output, int x, int y,
     XRRAddOutputMode(x11->display, xid, mode->id);
     x11->randr.monitor_sizes[output].width = width;
     x11->randr.monitor_sizes[output].height = height;
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "xrandr_add_and_set | vdagent-x11-randr.c | line 447" );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "height %d\n", height );
-// ======================================================================
     outputs[0] = xid;
     vdagent_x11_set_error_handler(x11, error_handler);
     s = XRRSetCrtcConfig(x11->display, x11->randr.res, x11->randr.res->crtcs[output],
@@ -493,14 +420,6 @@ static int set_screen_to_best_size(struct vdagent_x11 *x11, int width, int heigh
     Rotation rotation;
 
     sizes = XRRSizes(x11->display, 0, &num_sizes);
-// ================ added for debugging | KORMULEV ============
-	syslog( LOG_INFO, "set_screen_to_best_size | vdagent-x11-randr.c | line 504" );
-	syslog( LOG_INFO, "width in mm is %d", sizes->mwidth ); 
-	syslog( LOG_INFO, "height in mm is %d", sizes->mheight ); 
-	syslog( LOG_INFO, "width is %d", sizes->width ); 
-	syslog( LOG_INFO, "height is %d", sizes->height ); 
-	syslog( LOG_INFO, "x11->xfixes_event_base is %d", x11->xfixes_event_base ); 
-// ============================================================
     if (!sizes || !num_sizes) {
         syslog(LOG_ERR, "XRRSizes failed");
         return 0;
@@ -510,13 +429,6 @@ static int set_screen_to_best_size(struct vdagent_x11 *x11, int width, int heigh
 
     /* Find the closest size which will fit within the monitor */
     for (i = 0; i < num_sizes; i++) {
-// ===================================================================
-	syslog( LOG_INFO, "set_screen_to_best_size | vdagent-x11-randr.c | line 542" );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "height %d\n", height );
-	syslog( LOG_INFO, "sizes[ %d ].width =  %d\n", i, width );
-	syslog( LOG_INFO, "sizes[ %d ].height =  %d\n", i, height );
-// ==========================================================================
         if (sizes[i].width  > width ||
             sizes[i].height > height)
             continue; /* Too large for the monitor */
@@ -541,28 +453,13 @@ static int set_screen_to_best_size(struct vdagent_x11 *x11, int width, int heigh
         return 0;
     }
     XRRConfigCurrentConfiguration(config, &rotation);
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "set_screen_to_best_size | vdagent-x11-randr.c | line 573" );
-	syslog( LOG_INFO, "Before XRRSetScreenConfig" );
-	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
-// ======================================================================
     XRRSetScreenConfig(x11->display, config, x11->root_window[0], best,
                        rotation, CurrentTime);
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "set_screen_to_best_size | vdagent-x11-randr.c | line 580" );
-	syslog( LOG_INFO, "After XRRSetScreenConfig" );
-	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
-// ======================================================================
     XRRFreeScreenConfigInfo(config);
 
     if (x11->debug)
         syslog(LOG_DEBUG, "set_screen_to_best_size set size to: %dx%d\n",
                sizes[best].width, sizes[best].height);
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "set_screen_to_best_size | vdagent-x11-randr.c | line 590" );
-	syslog( LOG_INFO, "sizes[ best ].width %d\n", sizes[ best ].width );
-	syslog( LOG_INFO, "sizes[ best ].height %d\n", sizes[ best ].height );
-// ======================================================================
     *out_width = sizes[best].width;
     *out_height = sizes[best].height;
     return 1;
@@ -571,14 +468,6 @@ static int set_screen_to_best_size(struct vdagent_x11 *x11, int width, int heigh
 void vdagent_x11_randr_handle_root_size_change(struct vdagent_x11 *x11,
     int screen, int width, int height)
 {
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_randr_handle_root_size_change | vdagent-x11-randr.c | line 596" );
-	syslog( LOG_INFO, "x11->width[screen] %d\n", x11->width[screen] );
-	syslog( LOG_INFO, "x11->height[screen] %d\n", x11->height[screen] );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "height %d\n", height );
-	syslog( LOG_INFO, "x11->xfixes %d\n", x11->width[screen] );
-// ======================================================================
 
     if (width == x11->width[screen] && height == x11->height[screen]) {
         return;
@@ -590,11 +479,6 @@ void vdagent_x11_randr_handle_root_size_change(struct vdagent_x11 *x11,
 
     x11->width[screen]  = width;
     x11->height[screen] = height;
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_randr_handle_root_size_change | vdagent-x11-randr.c | line 614" );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "height %d\n", height );
-// ======================================================================
 
     if (!x11->dont_send_guest_xorg_res) {
         vdagent_x11_send_daemon_guest_xorg_res(x11, 1);
@@ -613,12 +497,6 @@ static int max_int(int x, int y)
 
 static int constrain_to_range(int low, int *val, int high)
 {
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vonstrain_to_range | vdagent-x11-randr.c | line 637" );
-	syslog( LOG_INFO, "low %d\n", low );
-	syslog( LOG_INFO, "val %d\n", *val );
-	syslog( LOG_INFO, "height %d\n", high );
-// ======================================================================
 
     if (low <= *val && *val <= high) {
         return 0;
@@ -642,14 +520,6 @@ static void constrain_to_screen(struct vdagent_x11 *x11, int *w, int *h)
     hx = x11->randr.max_width;
     ly = x11->randr.min_height;
     hy = x11->randr.max_height;
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "constrain_to_screen | vdagent-x11-randr.c | line 674" );
-	syslog( LOG_INFO, "min_width %d\n", lx );
-	syslog( LOG_INFO, "max_width %d\n", hx );
-	syslog( LOG_INFO, "min_height %d\n", ly );
-	syslog( LOG_INFO, "max_height %d\n", hy );
-	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
-// ======================================================================
     if (constrain_to_range(lx, w, hx)) {
         syslog(LOG_ERR, "width not in driver range: ! %d < %d < %d",
                lx, orig_w, hx);
@@ -662,13 +532,6 @@ static void constrain_to_screen(struct vdagent_x11 *x11, int *w, int *h)
 
 static int monitor_enabled(VDAgentMonConfig *mon)
 {
-// ======================= added for debugging | KORMULEV ===============
-/*	if ( ( 0 > mon->width || 0 > mon->height ) && ( mon->width < 3000 && mon->height < 3000 ) ) {
-		syslog( LOG_INFO, "monitor_enabled | vdagent-x11-randr.c | line 686" );
-		syslog( LOG_INFO, "mon->width %d\n", mon->width );
-		syslog( LOG_INFO, "mon->height %d\n",  mon->height );
-	} */
-// ======================================================================
     return mon->width != 0 && mon->height != 0;
 }
 
@@ -699,14 +562,6 @@ static void zero_base_monitors(struct vdagent_x11 *x11,
         mon_width = (int *)&mon_config->monitors[i].width;
         mon_height = (int *)&mon_config->monitors[i].height;
         constrain_to_screen(x11, mon_width, mon_height);
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "zero_base_monitors | vdagent-x11-randr.c | line 731" );
-	syslog( LOG_INFO, "width %d\n", *width );
-	syslog( LOG_INFO, "height %d\n",  *height );
-	syslog( LOG_INFO, "mon_width %d\n", *mon_width );
-	syslog( LOG_INFO, "mon_height %d\n",  *mon_height );
-	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
-// ======================================================================
         min_x = min_int(mon_config->monitors[i].x, min_x);
         min_y = min_int(mon_config->monitors[i].y, min_y);
         max_x = max_int(mon_config->monitors[i].x + *mon_width, max_x);
@@ -726,14 +581,6 @@ static void zero_base_monitors(struct vdagent_x11 *x11,
     max_y -= min_y;
     *width = max_x;
     *height = max_y;
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "zero_base_monitors | vdagent-x11-randr.c | line 748" );
-	syslog( LOG_INFO, "width %d\n", max_x );
-	syslog( LOG_INFO, "height %d\n",  max_y );
-	syslog( LOG_INFO, "min_x %d\n", min_x );
-	syslog( LOG_INFO, "min_y %d\n",  min_y );
-// ======================================================================
-
 }
 
 static int enabled_monitors(VDAgentMonitorsConfig *mon)
@@ -759,14 +606,6 @@ static int same_monitor_configs(VDAgentMonitorsConfig *conf1,
     for (i = 0; i < conf1->num_of_monitors; i++) {
         VDAgentMonConfig *mon1 = &conf1->monitors[i];
         VDAgentMonConfig *mon2 = &conf2->monitors[i];
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "same_monitors_configs | vdagent-x11-randr.c | line 781" );
-	syslog( LOG_INFO, "mon1->width %d\n", mon1->width );
-	syslog( LOG_INFO, "mon1->height %d\n", mon1->height );
-	syslog( LOG_INFO, "mon2->width %d\n", mon2->width );
-	syslog( LOG_INFO, "mon2->height %d\n",  mon2->height );
-// ======================================================================
-
 
         /* NOTE: we don't compare depth. */
         if (mon1->x != mon2->x || mon1->y != mon2->y ||
@@ -814,12 +653,6 @@ static VDAgentMonitorsConfig *get_current_mon_config(struct vdagent_x11 *x11)
         mon_config->monitors[i].y      = crtc->y;
         mon_config->monitors[i].width  = mode->width;
         mon_config->monitors[i].height = mode->height;
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "get_current_mon_config | vdagent-x11-randr.c |  line 846" );
-	syslog( LOG_INFO, "mode->width %d\n", mode->width );
-	syslog( LOG_INFO, "mode->height %d\n",  mode->height );
-	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
-// ======================================================================
         num_of_monitors = i + 1;
     }
     mon_config->num_of_monitors = num_of_monitors;
@@ -847,12 +680,6 @@ static void dump_monitors_config(struct vdagent_x11 *x11,
             continue;
         syslog(LOG_DEBUG, "received monitor %d config %dx%d+%d+%d", i,
                m->width, m->height, m->x, m->y);
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "dump_monitors_config | vdagent-x11-randr.c |  line 879" );
-	syslog( LOG_INFO, "m->width %d\n", m->width );
-	syslog( LOG_INFO, "m->height %d\n",  m->height );
-	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
-// ======================================================================
     }
 }
 
@@ -870,10 +697,6 @@ void vdagent_x11_set_monitor_config(struct vdagent_x11 *x11,
                                     VDAgentMonitorsConfig *mon_config,
                                     int fallback)
 {
-// ============ added for debugging | KORMULEV ===========
-	syslog( LOG_INFO, "vdagent_x11_set_monitor_config | vdagent-x11-randr.c | line 902" );
-	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
-// =======================================================
     int primary_w, primary_h;
     int i, real_num_of_monitors = 0;
     VDAgentMonitorsConfig *curr = NULL;
@@ -909,37 +732,15 @@ void vdagent_x11_set_monitor_config(struct vdagent_x11 *x11,
                mon_config->num_of_monitors, MONITOR_SIZE_COUNT);
         mon_config->num_of_monitors = MONITOR_SIZE_COUNT;
     }
-// ============ added for debugging | KORMULEV ===========
-	syslog( LOG_INFO, "vdagent_x11_set_monitor_config | vdagent-x11-randr.c | line 941" );
-	syslog( LOG_INFO, "Before zero_base_monitors" );
-	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
-// =======================================================
     zero_base_monitors(x11, mon_config, &primary_w, &primary_h);
-// ============ added for debugging | KORMULEV ===========
-	syslog( LOG_INFO, "vdagent_x11_set_monitor_config | vdagent-x11-randr.c | line 947" );
-	syslog( LOG_INFO, "After zero_base_monitors" );
-	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
-// =======================================================
 
     constrain_to_screen(x11, &primary_w, &primary_h);
-// ============ added for debugging | KORMULEV ===========
-	syslog( LOG_INFO, "vdagent_x11_set_monitor_config | vdagent-x11-randr.c | line 947" );
-	syslog( LOG_INFO, "After constrain_to_screen" );
-	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
-// =======================================================
 
     if (x11->debug) {
         dump_monitors_config(x11, mon_config, "after zeroing");
     }
 
     curr = get_current_mon_config(x11);
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_set_monitor_config | vdagent-x11-randr.c | line 965" );
-	syslog( LOG_INFO, "x11->width[0] %d\n", x11->width[0] );
-	syslog( LOG_INFO, "x11->height[0] %d\n", x11->height[0] );
-	syslog( LOG_INFO, "primary_w %d\n", primary_w );
-	syslog( LOG_INFO, "primary_h %d\n", primary_h );
-// ======================================================================
 
     if (same_monitor_configs(mon_config, curr) &&
            x11->width[0] == primary_w && x11->height[0] == primary_h) {
@@ -960,17 +761,11 @@ void vdagent_x11_set_monitor_config(struct vdagent_x11 *x11,
             xrandr_disable_output(x11, i);
         }
     }
-// ====================== added for debugging | KORMULEV =====================
-	syslog( LOG_INFO, "vdagent_x11_set_monitor_config | vdagent-x11-randr.c | line 992" );
-	syslog( LOG_INFO, "width: %d", curr->monitors[i].width );
-	syslog( LOG_INFO, "hieght: %d", curr->monitors[i].height );
-// ===========================================================================
     /* ... and disable the ones that would be bigger than
      * the new RandR screen once it is resized. If they are enabled the
      * XRRSetScreenSize call will fail with BadMatch. They will be
      * reenabled after hanging the screen size.
      */
-/*   commented for debugging | KORMULEV */
     for (i = 0; i < curr->num_of_monitors; ++i) {
         int width, height;
         int x, y;
@@ -979,13 +774,6 @@ void vdagent_x11_set_monitor_config(struct vdagent_x11 *x11,
         height = curr->monitors[i].height;
         x = curr->monitors[i].x;
         y = curr->monitors[i].y;
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_set_monitor_config | vdagent-x11-randr.c | line 1011" );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "height %d\n", height );
-	syslog( LOG_INFO, "primary_w %d\n", primary_w );
-	syslog( LOG_INFO, "primary_h %d\n", primary_h );
-// ======================================================================
 
         if ((x + width > primary_w) || (y + height > primary_h)) {
             if (x11->debug)
@@ -999,13 +787,6 @@ void vdagent_x11_set_monitor_config(struct vdagent_x11 *x11,
 
     /* Then we can resize the RandR screen. */
     if (primary_w != x11->width[0] || primary_h != x11->height[0]) {
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_set_monitor_config | vdagent-x11-randr.c | line 1031" );
-	syslog( LOG_INFO, "x11->width[0] %d\n", x11->width[0] );
-	syslog( LOG_INFO, "x11->height[0] %d\n", x11->height[0] );
-	syslog( LOG_INFO, "primary_w %d\n", primary_w );
-	syslog( LOG_INFO, "primary_h %d\n", primary_h );
-// ======================================================================
 
         if (x11->debug)
             syslog(LOG_DEBUG, "Changing screen size to %dx%d",
@@ -1045,20 +826,10 @@ void vdagent_x11_set_monitor_config(struct vdagent_x11 *x11,
         /* Try to create the requested resolution */
         width = mon_config->monitors[i].width;
         height = mon_config->monitors[i].height;
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_set_monitor_config | vdagent-x11-randr.c | line 1075" );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "heigth %d\n", height );
-// ======================================================================
         x = mon_config->monitors[i].x;
         y = mon_config->monitors[i].y;
         if (!xrandr_add_and_set(x11, i, x, y, width, height) &&
                 enabled_monitors(mon_config) == 1) {
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_set_monitor_config | vdagent-x11-randr.c | line 1086" );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "heigth %d\n", height );
-// ======================================================================
             set_screen_to_best_size(x11, width, height,
                                     &primary_w, &primary_h);
             break;
@@ -1069,11 +840,6 @@ void vdagent_x11_set_monitor_config(struct vdagent_x11 *x11,
         x11->randr.num_monitors != enabled_monitors(mon_config));
     x11->width[0] = primary_w;
     x11->height[0] = primary_h;
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_set_monitor_config | vdagent-x11-randr.c | line 1101" );
-	syslog( LOG_INFO, "primary_w %d\n", primary_w );
-	syslog( LOG_INFO, "primary_h %d\n", primary_h );
-// ======================================================================
     /* Flush output buffers and consume any pending events (ConfigureNotify) */
     x11->dont_send_guest_xorg_res = 1;
     vdagent_x11_do_read(x11);
@@ -1091,16 +857,6 @@ void vdagent_x11_send_daemon_guest_xorg_res(struct vdagent_x11 *x11, int update)
 {
     struct vdagentd_guest_xorg_resolution *res = NULL;
     int i, width = 0, height = 0, screen_count = 0;
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_send_daemon_guest_xorg_res | vdagent-x11-randr.c | line 1123" );
-//	width  = x11->width[0];
-//      height = x11->height[0];
-
-	syslog( LOG_INFO, "x11->width[ 0 ] %d\n", x11->width[ 0 ] );
-	syslog( LOG_INFO, "x11->height[ 0 ] %d\n", x11->height[ 0 ] );
-	syslog( LOG_INFO, "heigth %d\n", height );
-	syslog( LOG_INFO, "x11->xfixes_event_base %d\n", x11->xfixes_event_base );
-// ======================================================================
     if (x11->has_xrandr) {
         VDAgentMonitorsConfig *curr;
 
@@ -1121,22 +877,12 @@ void vdagent_x11_send_daemon_guest_xorg_res(struct vdagent_x11 *x11, int update)
         for (i = 0; i < screen_count; i++) {
             res[i].width  = curr->monitors[i].width;
             res[i].height = curr->monitors[i].height;
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_send_daemon_guest_xorg_res | vdagent-x11-randr.c |  line 1151" );
-	syslog( LOG_INFO, "res[ %d ].width %d\n", i, curr->monitors[ i ].width );
-	syslog( LOG_INFO, "res[ %d ].height %d\n", i, curr->monitors[ i ].height );
-// ======================================================================
             res[i].x = curr->monitors[i].x;
             res[i].y = curr->monitors[i].y;
         }
         free(curr);
         width  = x11->width[0];
         height = x11->height[0];
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_send_daemon_guest_xorg_res | vdagent-x11-randr.c | line 1163" );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "heigth %d\n", height );
-// ======================================================================
     } else if (x11->has_xinerama) {
         XineramaScreenInfo *screen_info = NULL;
 
@@ -1158,22 +904,12 @@ void vdagent_x11_send_daemon_guest_xorg_res(struct vdagent_x11 *x11, int update)
             }
             res[screen_info[i].screen_number].width = screen_info[i].width;
             res[screen_info[i].screen_number].height = screen_info[i].height;
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_send_daemon_guest_xorg_res | vdagent-x11-randr.c | line 1161" );
-	syslog( LOG_INFO, "screen_info[ %d ].width %d\n", i, screen_info[ i ].width );
-	syslog( LOG_INFO, "screen_info[ %d ].height %d\n", i, screen_info[ i ].height );
-// ======================================================================
             res[screen_info[i].screen_number].x = screen_info[i].x_org;
             res[screen_info[i].screen_number].y = screen_info[i].y_org;
         }
         XFree(screen_info);
         width  = x11->width[0];
         height = x11->height[0];
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_send_daemon_guest_xorg_res | vdagent-x11-randr.c | line 1172" );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "height %d\n", height );
-// ======================================================================
     } else {
 no_info:
         screen_count = x11->screen_count;
@@ -1183,25 +919,12 @@ no_info:
         for (i = 0; i < screen_count; i++) {
             res[i].width  = x11->width[i];
             res[i].height = x11->height[i];
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_send_daemon_guest_xorg_res | vdagent-x11-randr.c |  line 1186" );
-	syslog( LOG_INFO, "res[ %d ].width %d\n", i, width );
-	syslog( LOG_INFO, "res[ %d ].height %d\n", i, height );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "height %d\n", height );
-// ======================================================================
             /* No way to get screen coordinates, assume rtl order */
             res[i].x = width;
             res[i].y = 0;
             width += x11->width[i];
             if (x11->height[i] > height)
                 height = x11->height[i];
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_send_daemon_guest_xorg_res | vdagent-x11-randr.c |  line 1200" );
-	syslog( LOG_INFO, "x11->width[%d] %d\n", i, x11->width[i] );
-	syslog( LOG_INFO, "x11->height[%d] %d\n", i, x11->height[i] );
-// ======================================================================
- 
         }
 
     }
@@ -1214,13 +937,6 @@ no_info:
 
     udscs_write(x11->vdagentd, VDAGENTD_GUEST_XORG_RESOLUTION, width, height,
                 (uint8_t *)res, screen_count * sizeof(*res));
-// ======================= added for debugging | KORMULEV ===============
-	syslog( LOG_INFO, "vdagent_x11_send_daemon_guest_xorg_res | vdagent-x11-randr.c | line 1216" );
-	syslog( LOG_INFO, "res[ %d ].width %d\n", i, width );
-	syslog( LOG_INFO, "res[ %d ].height %d\n", i, height );
-	syslog( LOG_INFO, "width %d\n", width );
-	syslog( LOG_INFO, "height %d\n", height );
-// ======================================================================
     free(res);
     return;
 no_mem:
