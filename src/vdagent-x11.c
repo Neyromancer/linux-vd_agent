@@ -222,59 +222,6 @@ struct vdagent_x11 *vdagent_x11_create(struct udscs_connection *vdagentd,
 
     for (i = 0; i < x11->screen_count; i++)
         x11->root_window[i] = RootWindow(x11->display, i);
-// ============= added for debugging | KORMULEV ==================
-/*
-//	XSelectInput( x11->display, x11->root_window[ i ], StructureNotifyMask );
-	int event_base = 0;
-	int error_base = 0;
-	XRRQueryExtension( x11->display, &event_base, &error_base );
-	XRRScreenConfiguration *sc = XRRGetScreenInfo( x11->display, x11->root_window[ i ] );
-	if ( NULL == sc ) {
-	}
-
-	int n_size = 0;
-	XRRScreenSize *sizes = XRRConfigSizes( sc, &n_size );
-	int size_index = 0;
-	Rotation rotation = 1;
-	int reflection = 0;
-	while ( size_index < n_size ) {
-		if ( sizes[ size_index ].width == 600 && 
-		     sizes[ size_index ].height == 800 ) {
-			++size_index;
-		}
-
-		if ( size_index >= n_size ) {
-		}
-		Status status = XRRSetScreenConfig( x11->display, sc, DefaultRootWindow( x11->display ), 
-						    ( SizeID )size_index, ( Rotation )( rotation | reflection ),
-						    CurrentTime );
-		XEvent event;
-		int rcvdr_rnotify = 1;
-		int rcvd_config_notify = 1;
-		if ( status == RRSetConfigSuccess ) {
-			while( 1 ) {
-				XNextEvent( x11->display, ( XEvent * )&event );
-				XRRUpdateConfiguration( &event );
-				switch( event.type - event_base ) {
-					case RRScreenChangeNotify:
-					rcvdr_rnotify = 0;
-					break;
-					default:
-					if ( event.type == ConfigureNotify ) {
-
-						rcvd_config_notify = 0;
-					} else {
-					}
-					break;
-				}
-				if ( rcvdr_rnotify && rcvdr_rnotify ) 
-					break;
-			}
-		}
-//		++size_index;
-	}
-	exit( 1 );	*/
-// ===============================================================
 
     x11->fd = ConnectionNumber(x11->display);
     x11->clipboard_atom = XInternAtom(x11->display, "CLIPBOARD", False);
@@ -302,7 +249,7 @@ struct vdagent_x11 *vdagent_x11_create(struct udscs_connection *vdagentd,
 
     vdagent_x11_randr_init(x11);
 // =============================== added for debugging | KORMULEV ==================
-	syslog( LOG_INFO, "vdagent_x11_create | vdagent-x11.c | line 306" );
+	syslog( LOG_INFO, "vdagent_x11_create | vdagent-x11.c | line 252" );
 	syslog( LOG_INFO, "x11->xfixes_event_base is %d\n", x11->xfixes_event_base );
 // =================================================================================
     if (XFixesQueryExtension(x11->display, &x11->xfixes_event_base, &i) &&
@@ -356,9 +303,28 @@ struct vdagent_x11 *vdagent_x11_create(struct udscs_connection *vdagentd,
         syslog( LOG_INFO, "attrib.height is %d\n", attrib.height );
 	syslog( LOG_INFO, "x11->width[ %d ] is %d\n", i, x11->width[ i ] );
         syslog( LOG_INFO, "x11->height[ %d ] is %d\n", i, x11->height[ i ] );
+
+// XXX might need to change to a call to function set_scren_to_best_size
+	int num_size = 0;
+		XRRScreenSize *sizes = XRRSizes( x11->display, i, &num_size );
+	int j = 0;
+	int max_screen_width = 0;
+	int max_screen_height = 0;
+	for ( j = 0; j < num_size; ++j ) {
+		int tmp_width = sizes[ j ].width;
+		if ( tmp_width > max_screen_width )
+			max_screen_width = tmp_width;
+		int tmp_height = sizes[ j ].height;
+		if ( tmp_height > max_screen_height )
+			max_screen_height = tmp_height;
+	}
+	x11->width[ i ] = max_screen_width;
+	x11->height[ i ] = max_screen_height;
 // ========================================================================
-        x11->width[i]  = attrib.width;
-        x11->height[i] = attrib.height;
+// ================= commented for debugging ==============================
+//        x11->width[i]  = attrib.width;
+//        x11->height[i] = attrib.height;
+// ========================================================================
     }
     vdagent_x11_send_daemon_guest_xorg_res(x11, 1);
 
@@ -608,6 +574,10 @@ static void update_randr_res( struct vdagent_x11 *x11, int poll ) {
 	for ( i = 0; i < x11->randr.res->ncrtc; ++i ) {
 		x11->randr.crtcs[ i ] = XRRGetCrtcInfo( x11->display, x11->randr.res,
 							x11->randr.res->crtcs[ i ] );
+// ======================= added for debugging ===================================
+		x11->randr.crtcs[ i ]->width = x11->width[ 0 ];
+		x11->randr.crtcs[ i ]->height = x11->height[ 0 ];
+// ===============================================================================
 	}
 	if ( 1 != XRRGetScreenSizeRange( x11->display, x11->root_window[ 0 ],
 				    &x11->randr.min_width,
@@ -680,10 +650,13 @@ static int set_screen_to_defined_size( struct vdagent_x11 *x11, int width, int h
 
 void vdagent_process_screen_size_change( struct vdagent_x11 *x11 )
 {
+
 // ============= added for debugging | KORMULEV ==================
      syslog( LOG_INFO, "<<<<<<<<<<<<<<< !!!!!!!!!!!!!!!!! vdagent_process_screen_size_change !!!!!!!!!!!!!!!!!!!!! >>>>>>>>>>>>>>>>>" );
      syslog( LOG_INFO, "Catch resolution changes | vdagent_process_screen_size_change | vdagent-x11.c | line 567 " );
     // ===============================================================
+	system( "xrandr --output Virtual-0 --auto" );
+/* 
    XWindowAttributes attrib;
    XRRScreenSize *sizes = NULL;
    XRRScreenConfiguration **sc;
@@ -691,7 +664,7 @@ void vdagent_process_screen_size_change( struct vdagent_x11 *x11 )
    int out_width = 0;
    int out_height = 0;
    for ( i = 0; i < x11->screen_count; ++i ) {
-      /* Catch resolution changes */
+      // Catch resolution changes
       XSelectInput( x11->display, x11->root_window[ i ], StructureNotifyMask );
       XRRScreenConfiguration *tmp = XRRGetScreenInfo( x11->display, x11->root_window[ i ] );
       if ( NULL == tmp ) {
@@ -706,10 +679,14 @@ void vdagent_process_screen_size_change( struct vdagent_x11 *x11 )
 		syslog( LOG_ERR, "Something went wrong. Could not assign screen info correctly" );
       }
       
-      /* Get the current resolution */
+      // Get the current resolution
       XGetWindowAttributes( x11->display, x11->root_window[ i ], &attrib );
-      int n_size = 0;
-      sizes = XRRConfigSizes( ( sc[ i ] ), &n_size );
+      int num_size = 0;
+      sizes = XRRSizes( x11->display, i, &num_size );
+      x11->width[ i ] = sizes[ 0 ].width;
+      x11->height[ i ] = sizes[ 0 ].height;
+   }
+
       // =================== added for debugging | KORMULEV =====================
       syslog( LOG_INFO, "vdagent_process_screen_size_change | vdagent-x11.c | line 573" );
       syslog( LOG_INFO, "attrib.width is %d\n", attrib.width );
@@ -718,21 +695,9 @@ void vdagent_process_screen_size_change( struct vdagent_x11 *x11 )
       syslog( LOG_INFO, "sizes[ i ].height is %d\n", sizes[ i ].height );
       syslog( LOG_INFO, "x11->width[ %d ] is %d\n", i, x11->width[ i ] );
       syslog( LOG_INFO, "x11->height[ %d ] is %d\n", i, x11->height[ i ] );
-      if ( x11->width[ i ] != attrib.width ||
-  	   x11->height[ i ] != attrib.height )
-      syslog( LOG_INFO, "sizes in x11 structure are not equal to the physical screen sizes" );
       // ========================================================================
-      if ( x11->width[ i ] != sizes[ i ].width )
-	      x11->width[i]  = sizes[ i ].width;
-      if ( x11->height[ i ] != sizes[ i ].height )
-	      x11->height[i] = sizes[ i ].height; 
-    
-/*      XRRSetScreenSize( x11->display, x11->root_window[ 0 ], x11->width[ i ], x11->height[ i ],
-			DisplayWidthMM( x11->display, 0 ),
-			DisplayHeightMM( x11->display, 0 ) ); */
+
         set_screen_to_defined_size( x11, x11->width[ i ], x11->height[ i ], &out_width, &out_height );
-//	x11->width[ i ] = out_width;
-//	x11->height[ i ] = out_height;
 // =================== added for debugging | KORMULEV =====================
       syslog( LOG_INFO, "vdagent_process_screen_size_change | vdagent-x11.c | line 737" );
       syslog( LOG_INFO, "attrib.width is %d\n", attrib.width );
@@ -742,15 +707,16 @@ void vdagent_process_screen_size_change( struct vdagent_x11 *x11 )
       syslog( LOG_INFO, "x11->width[ %d ] is %d\n", i, x11->width[ i ] );
       syslog( LOG_INFO, "x11->height[ %d ] is %d\n", i, x11->height[ i ] );
 // ========================================================================
-    }
-
     update_randr_res( x11, 0 );
+    vdagent_x11_send_daemon_guest_xorg_res(x11, 1);
     x11->dont_send_guest_xorg_res = 1;
     vdagent_x11_do_read( x11 );
     x11->dont_send_guest_xorg_res = 0;
     vdagent_x11_send_daemon_guest_xorg_res(x11, 0 );
     vdagent_x11_do_read( x11 );
+*/
 }
+
 // ============================================================================================================
 
 

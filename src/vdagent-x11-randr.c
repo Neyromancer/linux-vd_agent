@@ -132,10 +132,6 @@ static void update_randr_res(struct vdagent_x11 *x11, int poll)
 // ======================= added for debugging | KORMULEV ===============
 	syslog( LOG_INFO, "update_randr_res | vdagent-x11-randr.c |  line 133" );
         syslog( LOG_ERR, "exit function update_randr_res |  line 134");
-//	syslog( LOG_INFO, "x11->randr.monitor_sizes[ 0 ].width %d\n", x11->randr.monitor_sizes[ 0 ].width );
-//	syslog( LOG_INFO, "x11->randr.monitor_sizes[ 0 ].height %d\n", x11->randr.monitor_sizes[ 0 ].height );
-//	syslog( LOG_INFO, "x11->randr.monitor_sizes[ 1 ].width %d\n", x11->randr.monitor_sizes[ 1 ].width );
-//	syslog( LOG_INFO, "x11->randr.monitor_sizes[ 1 ].height %d\n", x11->randr.monitor_sizes[ 1 ].height );
 // ======================================================================
 }
 
@@ -514,30 +510,6 @@ static int set_screen_to_best_size(struct vdagent_x11 *x11, int width, int heigh
 
     /* Find the closest size which will fit within the monitor */
     for (i = 0; i < num_sizes; i++) {
-// ============================ added for debugging | KORMULEV ==============
-/*	XSelectInput( x11->display, x11->root_window[i], StructureNotifyMask );
-	int event_base = 0;
-	int error_base = 0;
-	XRRQueryExtension( x11->display, &event_base, &error_base );
-        XRRScreenConfiguration *sc = XRRGetScreenInfo( x11->display, x11->root_window[i] );
-	if ( NULL == sc ) {
-//		syslog( LOG_INFO, "Couldn't get screen info" );
-	}
-	int num_sz = 0;
-	XRRScreenSize *scrn_sz = XRRConfigSizes( sc, &num_sz );*/
-// =================== added for debugging | KORMULEV ================
-//	syslog( LOG_INFO, "================= set_screen_to_best_size | vdagent-x11-randr.c | line 531 ====================" );	
-//	syslog( LOG_INFO, "num_sz is %d\n", num_sz );
-//	syslog( LOG_INFO, "num_sizes is %d\n", num_sizes );
-/*	int i = 0;
-	for ( i = 0; i < num_sz; ++i ) {
-		syslog( LOG_INFO, "scrn_sz[ %d ].width is %d\n", i, scrn_sz[ i ].width );
-		syslog( LOG_INFO, "scrn_sz[ %d ].height is %d\n", i, scrn_sz[ i ].height );
-		Rotation rotation = 1;
-		int reflection = 0;
-		Status status = XRRSetScreenConfig( x11->display, sc, DefaultRootWindow( x11->display ),
-						    ( SizeID )i, ( Rotation )( rotation | reflection ), CurrentTime );
-	} */
 // ===================================================================
 	syslog( LOG_INFO, "set_screen_to_best_size | vdagent-x11-randr.c | line 542" );
 	syslog( LOG_INFO, "width %d\n", width );

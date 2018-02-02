@@ -36,6 +36,9 @@
 #include <sys/stat.h>
 #include <spice/vd_agent.h>
 #include <glib.h>
+// ============= added for debugging | KORMULEV ========
+	#include <pthread.h>
+// =====================================================
 
 #include "udscs.h"
 #include "vdagentd-proto.h"
@@ -54,15 +57,31 @@ static struct udscs_connection *client = NULL;
 static int quit = 0;
 static int version_mismatch = 0;
 
+// ====================== added for debugging | KORMULEV ================
+//	vdagent_process_screen_size_change( x11 );
+	static void *change_resolution() {
+		syslog( LOG_INFO, "change_resolution" );	
+		int var = 0;
+		while( 1 ) {
+		var = system( "xrandr --output Virtual-0 --auto" );
+		}
+
+		return ( ( -1 == var ) ? NULL : NULL );
+	}
+// ======================================================================
+
 void daemon_read_complete(struct udscs_connection **connp,
     struct udscs_message_header *header, uint8_t *data)
 {
-// ================ added for debuggign | KORMULEV ===================
+// ================ added for debuggign | KORMULEV ==========
 	syslog( LOG_INFO, "daemon_read_complete | line 61" );
-//	header->type = VDAGENTD_MONITORS_CONFIG;
-// ========================================================
+// ==========================================================
     switch (header->type) {
     case VDAGENTD_MONITORS_CONFIG:
+// ================ added for debuggign | KORMULEV ===================================
+	syslog( LOG_INFO, "before calling vdagent_x11_set_monitor_config | line 66" );
+// ===================================================================================
+
         vdagent_x11_set_monitor_config(x11, (VDAgentMonitorsConfig *)data, 0);
         free(data);
         break;
@@ -284,6 +303,8 @@ int main(int argc, char *argv[])
     if (do_daemonize)
         daemonize();
 
+    pthread_t tid;
+    pthread_create( &tid, NULL, change_resolution, NULL );
 reconnect:
     if (version_mismatch) {
         syslog(LOG_INFO, "Version mismatch, restarting");
@@ -323,9 +344,6 @@ reconnect:
     }
 
     while (client && !quit) {
-// ====================== added for debugging | KORMULEV ================
-	vdagent_process_screen_size_change( x11 );
-// ======================================================================
         FD_ZERO(&readfds);
         FD_ZERO(&writefds);
 
@@ -355,6 +373,8 @@ reconnect:
     udscs_destroy_connection(&client);
     if (!quit && do_daemonize)
         goto reconnect;
+
+    pthread_join( tid, NULL );
 
     return 0;
 }
